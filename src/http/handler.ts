@@ -33,7 +33,11 @@ export async function handleRequest(
       if (Number(request.headers.get("content-length") || 0) > 120_000)
         throw new AppError(413, "BODY_TOO_LARGE", "ข้อมูลมีขนาดใหญ่เกินไป");
     }
-    const ctx: Context = { user, requestId };
+    // First hop of x-forwarded-for is the client address set by the platform proxy (FR-AUDIT-02).
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim().slice(0, 64) ||
+      undefined;
+    const ctx: Context = { user, requestId, ip };
     const body = async () => {
       const text = await request.text();
       if (text.length > 120_000)
