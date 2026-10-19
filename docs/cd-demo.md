@@ -2,7 +2,7 @@
 
 ## สถานะที่ต้องเข้าใจก่อน
 
-เตรียม workflow และทดสอบเงื่อนไขการปล่อยเว็บในเครื่องแล้ว ส่วนการ deploy ผ่าน GitHub จริงต้องตั้ง Environment/secrets และทดสอบ Actions หลัง merge เวอร์ชันนี้เข้า main ก่อน จึงจะอ้างว่า CD ใช้งานจริงได้
+ทดสอบ workflow ในเครื่องและ CI แล้ว ตั้ง Environment/secrets ใน fork แล้ว ส่วนการ deploy ผ่าน GitHub จริงยังต้องรวมเวอร์ชันนี้เข้า main และอนุมัติ release ก่อน จึงจะอ้างว่า CD ใช้งานจริงได้
 
 เส้นทาง: แก้โค้ด → PR → CI → merge เข้า main → CI บน main → รอ Approve → Vercel build → ตรวจ deployment → promote ขึ้นเว็บจริง
 
@@ -12,11 +12,13 @@
 
 Repo ที่ใช้ต่อคือ [Pathornnnnn/sdpx-assignment](https://github.com/Pathornnnnn/sdpx-assignment) ซึ่ง fork มาจาก KNIGHTKRUBPOM พร้อม branch `feature/cd-prd-readiness` ที่มีงานล่าสุด บัญชี `Pathornnnnn` เป็นเจ้าของและมีสิทธิ์ Admin ใช้บัญชีนี้ตั้งค่าเองได้ ไม่ต้องเข้าบัญชีเจ้าของต้นทาง Environment/secrets ต้องตั้งใน fork นี้ และ Vercel ยังใช้โปรเจกต์ `paireval-pilot` เดิม
 
-เตรียมใน fork แล้ว: Environment `production`, Required reviewer `Pathornnnnn` (อนุมัติรอบที่ตัวเองเริ่มได้), อนุญาตเฉพาะ branch `main`, Vercel project/team ID และ repository variable `DEPLOY_ENABLED=false` ยังไม่มี secret `VERCEL_TOKEN` ต้องให้เจ้าของ Vercel ใส่ผ่านหน้า GitHub โดยตรง ขั้นตอนด้านล่างใช้ตรวจค่าที่เตรียมแล้วและทำส่วนที่เหลือต่อ ส่วน branch protection ยังต้องตั้งตามข้อ 9
+เตรียมใน fork แล้ว: Environment `production`, Required reviewer `Pathornnnnn` (อนุมัติรอบที่ตัวเองเริ่มได้), อนุญาตเฉพาะ branch `main`, Vercel project/team ID และ secret `VERCEL_TOKEN` ที่เจ้าของใส่ผ่าน GitHub โดยตรง คง `DEPLOY_ENABLED=false` ระหว่างรวมโค้ด การมี secret ยังไม่ยืนยันว่า token ใช้งานได้ ต้องผ่าน release จริงก่อน
+
+ตั้ง branch protection ของ `main` และ `develop` แล้ว: ต้องผ่าน checks `verify` และ `container` จาก GitHub Actions, รวมโค้ดผ่าน PR, บังคับใช้กับ Admin และห้าม force-push/ลบสาขา ขั้นตอนด้านล่างใช้ตรวจค่าเดิมหรือเตรียม repo ใหม่
 
 เปิด workflow `CI` ของ fork แล้ว เพราะ workflow ที่ติดมากับ fork ยังไม่เริ่มทดสอบจนกว่าจะเปิดใช้งานและมี push ใหม่ หาก CI ไม่เริ่ม ให้ตรวจ Actions → CI ว่ายัง enabled อยู่ ส่วน deploy บน feature branch ต้องเป็น skipped ตามเงื่อนไขเดิม
 
-ตอนเตรียมงาน `develop` ยังเป็นเวอร์ชันเก่ากว่า `main` ก่อนรวม branch ชุดนี้ ให้เจ้าของเปิด PR `main` → `develop` เพื่อซิงก์เวอร์ชันปัจจุบันและตรวจ CI จากนั้นจึงรวม `feature/cd-prd-readiness` → `develop` → `main` ตามลำดับ ไม่ต้อง force-push หรือเอาโค้ดเก่าทับ main
+การนำชุดนี้เข้าระบบใช้ PR `feature/cd-prd-readiness` → `develop` → `main` โดย feature รวม main ปัจจุบันไว้แล้ว จึงซิงก์ develop ที่เก่ากว่าพร้อมงานล่าสุดใน PR เดียว ไม่ต้อง force-push ตอนเปิด PR ให้เลือก base repository เป็น `Pathornnnnn/sdpx-assignment` เพื่อรวมเข้า fork ของคุณ
 
 1. เข้าบัญชี `Pathornnnnn` แล้วเปิด [Settings → Environments](https://github.com/Pathornnnnn/sdpx-assignment/settings/environments)
 2. New environment → ตั้งชื่อ `production`
