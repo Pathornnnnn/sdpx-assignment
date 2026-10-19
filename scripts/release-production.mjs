@@ -3,7 +3,7 @@ import { appendFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 export const target = Object.freeze({
-  repository: "KNIGHTKRUBPOM/sdpx-assignment", project: "paireval-pilot",
+  repository: "Pathornnnnn/sdpx-assignment", project: "paireval-pilot",
   projectId: "prj_49pVANJrZxTzr8v4Pwq27J9yE8nY", orgId: "team_Cg6GrtO0xOVjEKm0UVlN6XK9",
   publicUrl: "https://paireval-pilot.vercel.app",
 });
@@ -29,7 +29,7 @@ export async function releaseProduction({ env = process.env, json = readJson, ru
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, text);
 } } = {}) {
   check(env.GITHUB_ACTIONS === "true" && env.GITHUB_EVENT_NAME === "push" && env.GITHUB_REF === "refs/heads/main" && env.GITHUB_REPOSITORY === target.repository,
-    "Release requires a push to the original repository's main branch in GitHub Actions");
+    "Release requires a push to the configured repository's main branch in GitHub Actions");
   check(env.DEPLOY_ENABLED === "true", "DEPLOY_ENABLED must be true");
   for (const key of ["GH_TOKEN", "VERCEL_TOKEN", "VERCEL_CLI_PATH"]) check(env[key], `Missing ${key}; configure production before enabling CD`);
   check(env.VERCEL_PROJECT_ID === target.projectId && env.VERCEL_ORG_ID === target.orgId, "Vercel project/team does not match paireval-pilot");

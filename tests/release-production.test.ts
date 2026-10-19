@@ -37,6 +37,12 @@ function fixture(change: { schema?: boolean; reviewers?: boolean; policy?: strin
   return { env, json, run, log: vi.fn(), summary: vi.fn() };
 }
 describe("production release guard", () => {
+  it("does not authorize the upstream repository to release through the fork's configuration", async () => {
+    const deps = fixture();
+    deps.env.GITHUB_REPOSITORY = "KNIGHTKRUBPOM/sdpx-assignment";
+    await expect(releaseProduction(deps)).rejects.toThrow("configured repository");
+    expect(deps.run).not.toHaveBeenCalled();
+  });
   it("stages without changing domains, verifies the build, and promotes that exact URL", async () => {
     const deps = fixture();
     expect(await releaseProduction(deps)).toMatchObject({ staged, commit: sha });

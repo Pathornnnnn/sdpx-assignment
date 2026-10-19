@@ -8,11 +8,15 @@
 
 ไม่มี hosted staging เพิ่มในรอบนี้ `develop` รัน CI แต่ไม่ปล่อยขึ้นฐานข้อมูลจริง โหมด Demo ยังคงรันแยกบนเครื่อง
 
-## ให้เพื่อนที่เป็นเจ้าของ repo ตั้งค่า
+## ตั้งค่าใน repo ของคุณ
+
+Repo ที่ใช้ต่อคือ [Pathornnnnn/sdpx-assignment](https://github.com/Pathornnnnn/sdpx-assignment) ซึ่ง fork มาจาก KNIGHTKRUBPOM พร้อม branch `feature/cd-prd-readiness` ที่มีงานล่าสุด บัญชี `Pathornnnnn` เป็นเจ้าของและมีสิทธิ์ Admin ใช้บัญชีนี้ตั้งค่าเองได้ ไม่ต้องเข้าบัญชีเจ้าของต้นทาง Environment/secrets ต้องตั้งใน fork นี้ และ Vercel ยังใช้โปรเจกต์ `paireval-pilot` เดิม
+
+เตรียมใน fork แล้ว: Environment `production`, Required reviewer `Pathornnnnn` (อนุมัติรอบที่ตัวเองเริ่มได้), อนุญาตเฉพาะ branch `main`, Vercel project/team ID และ repository variable `DEPLOY_ENABLED=false` ยังไม่มี secret `VERCEL_TOKEN` ต้องให้เจ้าของ Vercel ใส่ผ่านหน้า GitHub โดยตรง ขั้นตอนด้านล่างใช้ตรวจค่าที่เตรียมแล้วและทำส่วนที่เหลือต่อ ส่วน branch protection ยังต้องตั้งตามข้อ 9
 
 ตอนเตรียมงาน `develop` ยังเป็นเวอร์ชันเก่ากว่า `main` ก่อนรวม branch ชุดนี้ ให้เจ้าของเปิด PR `main` → `develop` เพื่อซิงก์เวอร์ชันปัจจุบันและตรวจ CI จากนั้นจึงรวม `feature/cd-prd-readiness` → `develop` → `main` ตามลำดับ ไม่ต้อง force-push หรือเอาโค้ดเก่าทับ main
 
-1. เข้าบัญชีเจ้าของ `KNIGHTKRUBPOM` แล้วเปิด [Settings → Environments](https://github.com/KNIGHTKRUBPOM/sdpx-assignment/settings/environments)
+1. เข้าบัญชี `Pathornnnnn` แล้วเปิด [Settings → Environments](https://github.com/Pathornnnnn/sdpx-assignment/settings/environments)
 2. New environment → ตั้งชื่อ `production`
 3. Required reviewers → เลือกผู้ที่จะกดอนุมัติ เช่น เจ้าของ repo → Save protection rules หากสาธิตคนเดียวไม่เปิด Prevent self-review
 4. Deployment branches and tags → Selected branches and tags → เพิ่ม Branch ชื่อ `main` เท่านั้น อย่าเพิ่ม wildcard, develop หรือ tag
@@ -21,7 +25,7 @@
 7. ใส่ token ผ่าน Environment secrets → Add environment secret ชื่อ `VERCEL_TOKEN` โดยตรง ไม่ส่ง token ในแชต ไม่ใส่ใน source code/ไฟล์ และไม่เพิ่มเป็น repository secret ที่ข้ามการอนุมัติ
 8. ใน Vercel ตรวจว่า project คือ `paireval-pilot` และปิด Git auto-deploy ที่ปล่อย production โดยข้าม workflow นี้ หากไม่มี Git integration ก็ไม่ต้องเชื่อมเพิ่ม
 9. Settings → Branches/Rulesets ป้องกัน main/develop ให้ผ่าน checks `verify` และ `container` ก่อน merge และใช้งานผ่าน PR หากตั้งการป้องกันไม่ได้ ให้เจ้าของตรวจผล CI ก่อน merge ทุกครั้ง
-10. ขณะเตรียมค่า ให้ repository variable `DEPLOY_ENABLED` เป็น `false` หรือยังไม่สร้าง หลัง merge workflow ใหม่นี้เข้า main และตรวจครบแล้วจึงเปิด [Settings → Secrets and variables → Actions → Variables](https://github.com/KNIGHTKRUBPOM/sdpx-assignment/settings/variables/actions) เพิ่ม `DEPLOY_ENABLED` = `true`
+10. ขณะเตรียมค่า ให้ repository variable `DEPLOY_ENABLED` เป็น `false` หรือยังไม่สร้าง หลัง merge workflow ใหม่นี้เข้า main และตรวจครบแล้วจึงเปิด [Settings → Secrets and variables → Actions → Variables](https://github.com/Pathornnnnn/sdpx-assignment/settings/variables/actions) เพิ่ม `DEPLOY_ENABLED` = `true`
 
 การเปลี่ยน variable ไม่ได้เริ่ม deploy เอง ต้องมี push ใหม่บน main จึงจะเริ่ม release รอบใหม่ ไม่ต้องรัน workflow ของ commit เก่าที่ใช้รูปแบบ secrets คนละชุด
 
@@ -51,7 +55,7 @@
 - `Missing VERCEL_TOKEN` / Vercel auth failed: เพิ่มหรือเปลี่ยน environment secret แล้วเริ่มรอบ release ที่ถูกต้อง ไม่ส่ง token ให้ผู้อื่นในแชต
 - Schema guard หยุด: `drizzle/` ต่างจาก commit ที่กำลังอยู่บนเว็บจริง ต้องเตรียม migration/release แยกก่อน แม้ migration จะอยู่ใน push เก่าที่ข้าม deploy ก็ยังหยุด รอบเดโมข้อความหรือ font ไม่ต้องเปลี่ยน schema
 - หน้า staged ติด Vercel protection: workflow ใช้ `vercel curl` ตรวจผ่านสิทธิ์ Vercel โดยไม่ปิด protection ถ้ายังไม่ได้ให้ตรวจสิทธิ์ token/team
-- ตรวจเว็บไม่ผ่าน: ระบบจะไม่ promote เวอร์ชันนั้น ดู Vercel build logs หรือหน้า deployment เพื่อแก้แล้วส่ง commit ใหม่
+- ตรวจ staged deployment ไม่ผ่าน: ระบบจะไม่ promote เวอร์ชันนั้น ดู Vercel build logs หรือหน้า deployment เพื่อแก้แล้วส่ง commit ใหม่ ถ้า public health check หลัง promote ไม่ผ่าน เวอร์ชันอาจขึ้นเว็บจริงแล้ว ให้ตรวจและใช้ขั้นตอน rollback ด้านล่าง
 
 หากยังตั้ง Environment ไม่ได้ ให้โชว์ CI แล้วเจ้าของใช้วิธี deploy ด้วยมือที่ใช้อยู่ อธิบายตามจริงว่ายังไม่มี GitHub approval gate และอย่าเปิด CD ข้ามข้อกำหนด
 
@@ -70,7 +74,7 @@
 
 ## หลักฐานทดสอบก่อนส่งต่อ
 
-- `npm test` / `npm run test:coverage`: 88 tests ผ่าน รวม 20 กรณีตรวจ release guard ด้วยบริการจำลอง ไม่ได้ deploy จริงระหว่าง unit tests
+- `npm test` / `npm run test:coverage`: ชุดก่อน fork ผ่าน 88 tests รวม 20 กรณีตรวจ release guard ด้วยบริการจำลอง; fork เพิ่มอีก 1 กรณียืนยันว่า repo ต้นทางไม่ผ่านการตรวจสิทธิ์ของ configuration นี้ ไม่ได้ deploy จริงระหว่าง unit tests
 - PostgreSQL integration: 16 tests ผ่าน รวมงาน group-only ตั้งแต่สร้างคู่จน finalize และ CSV
 - Browser E2E: 10 สถานการณ์ × 3 รอบ = 30 ผ่าน ครอบคลุมต่ออายุ session, logout/หมดอายุ, ฟอร์มรายบุคคล 0, progress และ tests เดิม
 - Local Demo: 3 สถานการณ์ผ่าน รวม 12 บัญชีส่งประเมิน/finalize และอาจารย์รับคู่เพิ่ม
