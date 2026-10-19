@@ -16,7 +16,7 @@ export function Header() {
             <path d="m9 5 2 2-2 2m6 6-2 2 2 2" />
           </svg>
         </span>
-        PairEvalEiEi
+        PairEval
         <span className="badge optional">PILOT</span>
       </Link>
       <nav className="nav" aria-label="เมนูหลัก">
