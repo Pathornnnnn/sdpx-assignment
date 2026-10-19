@@ -417,9 +417,10 @@ describe.sequential(
         service,
       );
       expect(r.status).toBe(200);
+      await service.export(ctx(owner), assignmentId, { report: "raw", includeIdentities: true, reason: "Integrity investigation" });
       const events = await db.select().from(t.events).where(eq(t.events.assignmentId, assignmentId));
       const actions = events.map((e) => e.action);
-      for (const action of ["PUBLISH_ASSIGNMENT", "FINALIZE_ASSIGNMENT", "SCORE_OVERRIDE", "IDENTITY_EXPORT_DENIED"])
+      for (const action of ["PUBLISH_ASSIGNMENT", "FINALIZE_ASSIGNMENT", "SCORE_OVERRIDE", "EXPORT_IDENTITIES"])
         expect(actions).toContain(action);
       expect(events.find((e) => e.action === "PUBLISH_ASSIGNMENT")?.detail).toMatchObject({ before: { status: "DRAFT" }, after: { status: "PUBLISHED" } });
       const overrides = events.filter((e) => e.action === "SCORE_OVERRIDE");
