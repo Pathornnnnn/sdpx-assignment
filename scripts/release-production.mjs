@@ -18,6 +18,14 @@ async function readJson(url, token) {
   check(response.ok, `Release configuration request failed: HTTP ${response.status}`);
   return response.json();
 }
+async function promoteDeployment(url, token) {
+  const response = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: "{}", signal: AbortSignal.timeout(30000) });
+  if (response.ok) return response.status;
+  // Vercel error bodies carry only a code and message, never credentials.
+  const error = await response.json().then(body => body?.error, () => undefined);
+  throw new Error(`Vercel promote failed: HTTP ${response.status}${error?.code ? ` ${error.code}: ${String(error.message ?? "").slice(0, 300)}` : ""}`);
+}
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 function command(program, args) {
   const result = spawnSync(program, args, { encoding: "utf8", timeout: 20 * 60000, maxBuffer: 4 * 1024 * 1024 });
   // Do not echo command output on failure: auth-related diagnostics may contain sensitive data.
@@ -25,7 +33,7 @@ function command(program, args) {
   return result.stdout.trim();
 }
 
-export async function releaseProduction({ env = process.env, json = readJson, run = command, log = console.log, summary = text => {
+export async function releaseProduction({ env = process.env, json = readJson, post = promoteDeployment, sleep = wait, run = command, log = console.log, summary = text => {
   if (env.GITHUB_STEP_SUMMARY) appendFileSync(env.GITHUB_STEP_SUMMARY, text);
 } } = {}) {
   check(env.GITHUB_ACTIONS === "true" && env.GITHUB_EVENT_NAME === "push" && env.GITHUB_REF === "refs/heads/main" && env.GITHUB_REPOSITORY === target.repository,
@@ -70,8 +78,15 @@ export async function releaseProduction({ env = process.env, json = readJson, ru
   const branch = await json(`${github}/git/ref/heads/main`, env.GH_TOKEN);
   check(branch.object?.sha === env.GITHUB_SHA, "main advanced; release its newer tested commit instead");
   log("Checks passed; promoting the staged production build");
-  // promote resolves the team from --scope, not VERCEL_ORG_ID; without it the CLI rejects team deployments.
-  vc(["promote", staged, "--yes", "--scope", target.orgId]);
+  // Promote through the REST API: the CLI hides the failure reason and resolves the team separately from VERCEL_ORG_ID.
+  check(/^dpl_[A-Za-z0-9]+$/.test(deployment.id ?? ""), "Staged deployment id is missing");
+  await post(`${vercelApi}/v10/projects/${target.projectId}/promote/${deployment.id}?teamId=${target.orgId}`, env.VERCEL_TOKEN);
+  let live;
+  for (let attempt = 0; attempt < 36 && live !== deployment.id; attempt++) {
+    if (attempt) await sleep(5000);
+    live = (await json(`${vercelApi}/v9/projects/${target.projectId}?teamId=${target.orgId}`, env.VERCEL_TOKEN)).targets?.production?.id;
+  }
+  check(live === deployment.id, "Promotion did not reach the production target within 3 minutes; inspect Vercel before retrying");
   // Check public reachability without the Vercel protection bypass used for staged checks.
   const publicHealth = await json(`${target.publicUrl}/api/health`, undefined);
   check(publicHealth.status === "ok" && publicHealth.service === "paireval", "Public health check failed after promotion; inspect and roll back if required");
