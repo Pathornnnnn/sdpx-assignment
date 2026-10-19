@@ -405,6 +405,31 @@ describe.sequential(
         }),
       ).rejects.toMatchObject({ status: 403 });
     });
+    it("audits critical actions with request IP and before/after values", async () => {
+      const origin = new URL(process.env.NEXTAUTH_URL || "http://localhost").origin;
+      const r = await handleRequest(
+        new Request(`${origin}/api/assignments/${assignmentId}/overrides`, {
+          method: "POST",
+          headers: { origin, "x-forwarded-for": "203.0.113.7, 10.0.0.1", "content-type": "application/json" },
+          body: JSON.stringify({ studentId: student.id, value: 17, reason: "Second review" }),
+        }),
+        owner,
+        service,
+      );
+      expect(r.status).toBe(200);
+      const events = await db.select().from(t.events).where(eq(t.events.assignmentId, assignmentId));
+      const actions = events.map((e) => e.action);
+      for (const action of ["PUBLISH_ASSIGNMENT", "FINALIZE_ASSIGNMENT", "SCORE_OVERRIDE", "IDENTITY_EXPORT_DENIED"])
+        expect(actions).toContain(action);
+      expect(events.find((e) => e.action === "PUBLISH_ASSIGNMENT")?.detail).toMatchObject({ before: { status: "DRAFT" }, after: { status: "PUBLISHED" } });
+      const overrides = events.filter((e) => e.action === "SCORE_OVERRIDE");
+      expect(overrides[0].detail).toMatchObject({ studentId: student.id, after: { finalPersonalScore: 18 } });
+      expect(overrides.at(-1)).toMatchObject({
+        actorId: owner.id,
+        ip: "203.0.113.7",
+        detail: { before: { finalPersonalScore: 18 }, after: { finalPersonalScore: 17 } },
+      });
+    });
     it("archives only for the owner with a matching name and an audit reason", async () => {
       const roster = await service.roster(ctx(owner), classroomId);
       for (const user of [student, roster.members.find((m) => m.role === "CO_TEACHER")!])
