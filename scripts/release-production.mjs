@@ -70,7 +70,8 @@ export async function releaseProduction({ env = process.env, json = readJson, ru
   const branch = await json(`${github}/git/ref/heads/main`, env.GH_TOKEN);
   check(branch.object?.sha === env.GITHUB_SHA, "main advanced; release its newer tested commit instead");
   log("Checks passed; promoting the staged production build");
-  vc(["promote", staged, "--yes"]);
+  // promote resolves the team from --scope, not VERCEL_ORG_ID; without it the CLI rejects team deployments.
+  vc(["promote", staged, "--yes", "--scope", target.orgId]);
   // Check public reachability without the Vercel protection bypass used for staged checks.
   const publicHealth = await json(`${target.publicUrl}/api/health`, undefined);
   check(publicHealth.status === "ok" && publicHealth.service === "paireval", "Public health check failed after promotion; inspect and roll back if required");

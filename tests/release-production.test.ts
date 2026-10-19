@@ -50,7 +50,7 @@ describe("production release guard", () => {
     expect(commands[0]).toContain("--skip-domain");
     expect(commands[0]).toContain(`githubCommitSha=${sha}`);
     expect(commands.filter(a => a[1] === "curl")).toHaveLength(3);
-    expect(commands.at(-1)).toEqual(["/test/vercel.js", "promote", staged, "--yes"]);
+    expect(commands.at(-1)).toEqual(["/test/vercel.js", "promote", staged, "--yes", "--scope", "team_Cg6GrtO0xOVjEKm0UVlN6XK9"]);
     expect(deps.json.mock.calls.at(-1)?.[0]).toBe(`${target.publicUrl}/api/health`);
     expect(deps.run.mock.calls.find(([program, args]) => program === "git" && args[0] === "diff")?.[1])
       .toEqual(["diff", "--name-only", "b".repeat(40), sha, "--", "drizzle"]);
