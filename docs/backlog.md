@@ -15,6 +15,8 @@ Target: non-commercial academic submission and a classroom of at most 30 student
 
 Definition of done per story: AC test passes, code review evidence exists, staging flow verified. The source implementation and local tests do not imply the external review/staging checks are complete. Use these IDs in GitHub issues and test names.
 
+Gap analysis เทียบ PRD v2.0 แยกตาม milestone: [`gap-analysis.md`](gap-analysis.md)
+
 Deferred after submission: email, XLSX, appeals, automatic retention, advanced collusion analytics, multi-timezone scheduled recomputation, reopen/regeneration after submissions, and 200-user/SLA certification. Append-only audit uses a separate schema and runtime permissions, not a physically separate datastore.
 
 Decisions: accept PostgreSQL integration tests instead of SQLite to exercise transactions and constraints; accept one deployable Next.js app; reject a full rewrite of tested domain functions; replace the production pairing allocator because the existing balanced-size tests did not prove feasibility for unequal groups.
