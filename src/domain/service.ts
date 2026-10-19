@@ -794,7 +794,12 @@ export class PairEvalService {
         "PUBLISH_ASSIGNMENT",
         assignmentId,
         undefined,
-        { pairCount: generated.length, feasibility },
+        {
+          pairCount: generated.length,
+          feasibility,
+          before: { status: a.status },
+          after: { status: "PUBLISHED" },
+        },
       );
       return {
         pairCount: generated.length,
@@ -1349,6 +1354,21 @@ export class PairEvalService {
         "SCORE_RANGE",
         "คะแนนเกินคะแนนเต็ม",
       );
+      const previous = await tx
+        .select({ value: t.overrides.value })
+        .from(t.overrides)
+        .where(
+          and(
+            eq(t.overrides.assignmentId, assignmentId),
+            eq(t.overrides.studentId, v.studentId),
+          ),
+        )
+        .orderBy(t.overrides.createdAt);
+      const before =
+        previous.length > 0
+          ? Number(previous.at(-1)!.value)
+          : a.snapshot!.students.find((s) => s.studentId === v.studentId)!
+              .personal.finalPersonalScore;
       await tx.insert(t.overrides).values({
         id: id(),
         assignmentId,
@@ -1362,7 +1382,11 @@ export class PairEvalService {
         "SCORE_OVERRIDE",
         assignmentId,
         v.reason,
-        v,
+        {
+          studentId: v.studentId,
+          before: { finalPersonalScore: before },
+          after: { finalPersonalScore: v.value },
+        },
       );
       return { updated: true };
     });
