@@ -14,6 +14,8 @@ Repo ที่ใช้ต่อคือ [Pathornnnnn/sdpx-assignment](https://
 
 เตรียมใน fork แล้ว: Environment `production`, Required reviewer `Pathornnnnn` (อนุมัติรอบที่ตัวเองเริ่มได้), อนุญาตเฉพาะ branch `main`, Vercel project/team ID และ repository variable `DEPLOY_ENABLED=false` ยังไม่มี secret `VERCEL_TOKEN` ต้องให้เจ้าของ Vercel ใส่ผ่านหน้า GitHub โดยตรง ขั้นตอนด้านล่างใช้ตรวจค่าที่เตรียมแล้วและทำส่วนที่เหลือต่อ ส่วน branch protection ยังต้องตั้งตามข้อ 9
 
+เปิด workflow `CI` ของ fork แล้ว เพราะ workflow ที่ติดมากับ fork ยังไม่เริ่มทดสอบจนกว่าจะเปิดใช้งานและมี push ใหม่ หาก CI ไม่เริ่ม ให้ตรวจ Actions → CI ว่ายัง enabled อยู่ ส่วน deploy บน feature branch ต้องเป็น skipped ตามเงื่อนไขเดิม
+
 ตอนเตรียมงาน `develop` ยังเป็นเวอร์ชันเก่ากว่า `main` ก่อนรวม branch ชุดนี้ ให้เจ้าของเปิด PR `main` → `develop` เพื่อซิงก์เวอร์ชันปัจจุบันและตรวจ CI จากนั้นจึงรวม `feature/cd-prd-readiness` → `develop` → `main` ตามลำดับ ไม่ต้อง force-push หรือเอาโค้ดเก่าทับ main
 
 1. เข้าบัญชี `Pathornnnnn` แล้วเปิด [Settings → Environments](https://github.com/Pathornnnnn/sdpx-assignment/settings/environments)
