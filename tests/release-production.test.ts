@@ -2,19 +2,25 @@ import { describe, expect, it, vi } from "vitest";
 import { deploymentUrl, releaseProduction, target } from "../scripts/release-production.mjs";
 
 const sha = "a".repeat(40), staged = "https://paireval-pilot-test-pathornnnnns-projects.vercel.app";
-function fixture(change: { schema?: boolean; reviewers?: boolean; policy?: string; project?: string; health?: boolean; demo?: boolean; head?: string; deploymentSha?: string } = {}) {
+function fixture(change: { schema?: boolean; reviewers?: boolean; policy?: string; project?: string; health?: boolean; demo?: boolean; head?: string; deploymentSha?: string; promote?: boolean; live?: boolean } = {}) {
   const env = {
     GITHUB_ACTIONS: "true", GITHUB_EVENT_NAME: "push", GITHUB_REF: "refs/heads/main", GITHUB_REPOSITORY: target.repository,
     GITHUB_SHA: sha, RELEASE_BASE_SHA: "b".repeat(40), DEPLOY_ENABLED: "true",
     VERCEL_PROJECT_ID: target.projectId, VERCEL_ORG_ID: target.orgId,
     GH_TOKEN: "test-github", VERCEL_TOKEN: "test-vercel", VERCEL_CLI_PATH: "/test/vercel.js",
   };
+  let promoted = false;
+  const post = vi.fn(async (url: string) => {
+    if (change.promote === false) throw new Error("Vercel promote failed: HTTP 403 forbidden: Not allowed");
+    promoted = url.includes("/promote/dpl_staged");
+    return 201;
+  });
   const json = vi.fn(async (url: string) => {
     if (url.endsWith("/environments/production")) return { protection_rules: change.reviewers === false ? [] : [{ type: "required_reviewers", reviewers: [{}] }], deployment_branch_policy: { custom_branch_policies: true } };
     if (url.endsWith("/deployment-branch-policies")) return { branch_policies: [{ name: change.policy ?? "main", type: "branch" }] };
-    if (url.includes("/v9/projects/")) return { id: change.project ?? target.projectId, name: target.project, accountId: target.orgId, targets: { production: { url: "paireval-pilot-previous.vercel.app" } } };
+    if (url.includes("/v9/projects/")) return { id: change.project ?? target.projectId, name: target.project, accountId: target.orgId, targets: { production: promoted && change.live !== false ? { id: "dpl_staged", url: new URL(staged).hostname } : { id: "dpl_previous", url: "paireval-pilot-previous.vercel.app" } } };
     if (url.includes("/v13/deployments/paireval-pilot-previous")) return { projectId: target.projectId, meta: { githubCommitSha: "b".repeat(40) } };
-    if (url.includes("/v13/deployments/")) return { projectId: target.projectId, target: "production", readyState: "READY", meta: { githubCommitSha: change.deploymentSha ?? sha } };
+    if (url.includes("/v13/deployments/")) return { id: "dpl_staged", projectId: target.projectId, target: "production", readyState: "READY", meta: { githubCommitSha: change.deploymentSha ?? sha } };
     if (url.endsWith("/git/ref/heads/main")) return { object: { sha: change.head ?? sha } };
     if (url === `${target.publicUrl}/api/health`) return { status: "ok", service: "paireval" };
     throw new Error("Unexpected API request");
@@ -26,7 +32,6 @@ function fixture(change: { schema?: boolean; reviewers?: boolean; policy?: strin
       return "";
     }
     if (args[1] === "deploy") return staged;
-    if (args[1] === "promote") return "Promoted";
     if (args[1] === "curl") {
       if (args[2].endsWith("/api/health")) return JSON.stringify({ status: change.health === false ? "error" : "ok", service: "paireval" });
       if (args[2].endsWith("/login")) return "<title>PairEval</title>";
@@ -34,7 +39,7 @@ function fixture(change: { schema?: boolean; reviewers?: boolean; policy?: strin
     }
     throw new Error("Unexpected command");
   });
-  return { env, json, run, log: vi.fn(), summary: vi.fn() };
+  return { env, json, post, sleep: vi.fn(async () => {}), run, log: vi.fn(), summary: vi.fn() };
 }
 describe("production release guard", () => {
   it("does not authorize the upstream repository to release through the fork's configuration", async () => {
@@ -50,7 +55,8 @@ describe("production release guard", () => {
     expect(commands[0]).toContain("--skip-domain");
     expect(commands[0]).toContain(`githubCommitSha=${sha}`);
     expect(commands.filter(a => a[1] === "curl")).toHaveLength(3);
-    expect(commands.at(-1)).toEqual(["/test/vercel.js", "promote", staged, "--yes", "--scope", "team_Cg6GrtO0xOVjEKm0UVlN6XK9"]);
+    expect(commands.some(a => a[1] === "promote")).toBe(false);
+    expect(deps.post).toHaveBeenCalledWith(`https://api.vercel.com/v10/projects/${target.projectId}/promote/dpl_staged?teamId=${target.orgId}`, "test-vercel");
     expect(deps.json.mock.calls.at(-1)?.[0]).toBe(`${target.publicUrl}/api/health`);
     expect(deps.run.mock.calls.find(([program, args]) => program === "git" && args[0] === "diff")?.[1])
       .toEqual(["diff", "--name-only", "b".repeat(40), sha, "--", "drizzle"]);
@@ -72,7 +78,12 @@ describe("production release guard", () => {
   it.each([{ health: false }, { demo: true }, { head: "c".repeat(40) }, { deploymentSha: "c".repeat(40) }])("never promotes a failed or stale deployment: %j", async change => {
     const deps = fixture(change);
     await expect(releaseProduction(deps)).rejects.toThrow();
-    expect(deps.run.mock.calls.some(([, args]) => args[1] === "promote")).toBe(false);
+    expect(deps.post).not.toHaveBeenCalled();
+  });
+  it.each([{ promote: false }, { live: false }])("fails loudly when promotion is rejected or never reaches production: %j", async change => {
+    const deps = fixture(change);
+    await expect(releaseProduction(deps)).rejects.toThrow(change.promote === false ? "HTTP 403 forbidden" : "did not reach the production target");
+    expect(deps.json.mock.calls.some(([url]) => url === `${target.publicUrl}/api/health`)).toBe(false);
   });
   it.each(["https://evil.example", "https://other.vercel.app", `${staged}/path`, `https://user:password@${new URL(staged).hostname}`, `${staged}?redirect=evil`])("rejects an unexpected deployment URL: %s", value => {
     expect(() => deploymentUrl(value)).toThrow();
